@@ -1,0 +1,32 @@
+<?php
+require_once('File/IMC.php');
+
+require_once('lib/vcard_class.php');
+
+$basedir='/var/webdav-lenin/kontakte/';
+$file='7EF2F178-425565C6-261CB5E7.vcf';
+error_reporting(E_ERROR | E_PARSE);
+
+//$karte= FILE_IMC::build('vCard'); 
+
+$abook= new AddressBook($basedir);
+echo "<html><body style='background:rgb(200,200,200);'>";
+//echo "uu<br>";;
+//echo "<pre>";print_r($abook);echo "</pre>";
+$abook->readBook();
+//echo "<pre>";print_r($abook);echo "</pre>";
+
+$abook->viewHtml();
+
+//$karte= new Vcard();
+//$karte->setFileName($basedir.$file);
+//$karte->fromFile();
+//echo "<pre>";print_r($karte);echo "</pre>";
+//$karte->save_html();
+//$karte->toFile();
+//$karte->edit_html();
+
+    
+echo "</body></html>";
+
+?>

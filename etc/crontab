@@ -1,0 +1,46 @@
+# /etc/crontab: system-wide crontab
+# Unlike any other crontab you don't have to run the `crontab'
+# command to install the new version when you edit this file
+# and files in /etc/cron.d. These files also have username fields,
+# that none of the other crontabs do.
+
+MAILTO=""
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# m h dom mon dow user	command
+17 *	* * *	root    cd / && run-parts --report /etc/cron.hourly
+25 6	* * *	root	test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )
+47 6	* * 7	root	test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly )
+52 6	1 * *	root	test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )
+#
+
+
+#scanner
+13 3 * * * scan find /home/scan/alt/ -ctime +3  -exec rm \{\} \;
+*/5 * * * * scan find /home/scan/ -maxdepth 1 -cmin +60  -type f  ! -name .\* -exec mv \{\} alt \;
+
+#GruppeBS
+*/5 * * * * root chmod -R a+rwx /home/GruppeBS/;chmod  go-rx /home/GruppeBS/System/
+
+#rsync system to GruppeBS
+22 21 * * * root /usr/local/bin/copy_system > /dev/null 2>&1
+
+
+#massen mail
+0,12,24,36,48  * * * * ascan /var/www/massmail/process_queue.php ascan > /dev/null 2>&1
+2,14,26,38,50  * * * * bscan /var/www/massmail/process_queue.php bscan > /dev/null 2>&1
+4,16,28,40,52 * * * * cscan /var/www/massmail/process_queue.php cscan > /dev/null 2>&1
+6,18,30,42,54 * * * * dscan /var/www/massmail/process_queue.php dscan > /dev/null 2>&1
+8,20,32,44,56 * * * * escan /var/www/massmail/process_queue.php escan > /dev/null 2>&1
+10,22,34,46,58 * * * * fscan /var/www/massmail/process_queue.php fscan > /dev/null 2>&1
+
+
+
+
+#brauchts nicht mehr!
+
+#*/5 * * * * scan find /home/scan/ -maxdepth 1 -cmin +60  -name \*jpg -exec mv \{\} alt \;
+#auf der anderen seite gemacht */15 6-21 * * * root /usr/local/bin/backsync
+#backup
+#21 23 * * * root /usr/local/bin/backup

@@ -1,0 +1,11 @@
+<?php
+include('lib/stats_queue.php');
+?>
+<html>
+<header></header>
+<body>
+
+<? php stats_queue(); ?>
+
+</body>
+</html>

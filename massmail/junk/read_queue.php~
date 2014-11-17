@@ -1,0 +1,51 @@
+<?php
+require_once('MDB2.php');
+
+
+function read_queue(){
+
+  global $mdb2;
+
+  $mdb2=& MDB2::factory('mysql://root:AmEsadS@localhost/mail');
+  if (PEAR::isError($mdb2)) {
+    die($mdb2->getMessage());
+  }
+
+  // Once you have a valid MDB2 object named $mdb2...
+  $mdb2->setFetchMode(MDB2_FETCHMODE_ASSOC);
+
+
+  // lösche alle vor mehr als 86400s gesendeten mail
+
+  $sql='SELECT id FROM mail_queue where (unix_timestamp()-unix_timestamp(sent_time))>86400;';
+
+  $res =& $mdb2->query($sql);
+  if (PEAR::isError($res)) {
+    die($res->getMessage());
+  }
+
+  while ($row = $res->fetchRow()) {
+     $sql='delete from mail_queue where id='.$row['id'];
+     $res2=$mdb2->query($sql);
+     if (PEAR::isError($res2)){die($res2->getMessage());}
+  }
+
+  $sql="select id_user,count('id_user')  as num from mail_queue where sent_time is not null group by id_user";
+  $res =& $mdb2->query($sql);
+  if (PEAR::isError($res)) {die($res->getMessage());}
+
+  for($i=1000;$i<=1007;$i++){$nums[$i]=0;}
+
+  while ($row = $res->fetchRow()) {
+      $nums[$row['id_user']]=$row['num'];
+  }
+
+  $mdb2->disconnect();
+ 
+  return $nums;
+}
+
+
+
+
+?>

@@ -1,0 +1,384 @@
+<?php
+
+include('../ckeditor/ckeditor.php');
+include('../ckfinder/ckfinder.php');
+include('config.php');
+include('lib/send_mail.php');
+include('lib/vcard.php');
+
+
+
+if(isset($_SESSION['subject'])){$subject=$_SESSION['subject'];}
+if(isset($_SESSION['liste'])){$liste=$_SESSION['liste'];}
+if(isset($_SESSION['user'])){$user=$_SESSION['user'];}
+if(isset($_SESSION['name'])){$name=$_SESSION['name'];}
+if(isset($_SESSION['versand'])){$versand=$_SESSION['versand'];}
+if(!isset($text)){$text="";}
+if(!isset($subject)){$subject="";}
+if(!isset($liste)){$liste="nolist";}
+if(!isset($user)){$user="nobody";}
+if(!isset($name)){$name="noname";}
+if(!isset($versand)){$versand=1;}
+
+$error="";
+
+if(isset($_GET['file'])){
+  $_SESSION['liste']=$_GET['file'];
+  $liste=$_GET['file'];
+}
+
+?>
+
+
+<?php
+
+
+$basedir=dirname($_SERVER['SCRIPT_FILENAME']);
+$tmpdir=$basedir.'/tmp/';
+$sessiondir=$tmpdir.'/'.session_id();
+
+?>
+
+<?php
+$dir = "/var/webdav-lenin/kontakte/";
+
+$vcards=read_lists($dir);
+
+$zahl=count($vcards['name']);
+
+for($i=0;$i<$zahl;$i++){
+  $vcards_name[$vcards['file'][$i]]=$vcards['name'][$i];
+}
+
+?>
+
+
+<?php
+
+if(isset($_POST['reset'])){
+  $_SESSIOM['text']="";
+  $_SESSION['subject']="";
+  $_SESSION['liste']="nolist";
+  $_SESSION['user']="-1";
+  $_SESSION['versand']=1;
+
+  $ok=false;
+  $name="";
+  system("rm -r ".$basedir."/tmp/".session_id()."/*");
+}
+
+
+if(isset($_POST['upload'])and($_POST["upload"]=="Laden")){
+}
+
+$ok=false;
+if(isset($_POST["user"])){
+  $ok=true;
+
+  if(isset($_FILES['attach'])){
+    if(!file_exists($basedir.'/tmp/'.session_id())){
+      if(!mkdir($basedir.'/tmp/'.session_id())){echo "mkdir<br>";}
+    }
+    if(!file_exists($basedir.'/tmp/'.session_id().'/attach/')){
+      if(!mkdir($basedir.'/tmp/'.session_id().'/attach/')){echo "mkdir<br>";}
+    }
+
+    if($_FILES['attach']['error']==0){
+       move_uploaded_file($_FILES['attach']['tmp_name'],$basedir.'/tmp/'.session_id().'/attach/'.$_FILES['attach']['name']);
+    }
+  }  
+
+  $error="";
+  if($_POST["user"]=="-1"){
+      if($ok){$error.="Es fehlen: ";}
+      $user="-1";
+      $ok=false; 
+      $error.= "Absender ";
+  }else{
+      $user=$_POST["user"];
+      $_SESSION['user']=$user;
+  }
+
+  if(($_POST['liste']=="nolist")){
+      if($ok){$error.="Es fehlen: ";}
+      $liste="nolist";
+      $name="noname";
+      $ok=false;
+      $error.= "Empf&auml;nger ";
+  }else{
+      $_SESSION['liste']=$_POST['liste'];
+      $name=$vcards_name[$_SESSION['liste']];
+      //liste in tabelle mail
+//*********************************************************************************
+      $inhalt=file_get_contents('/var/webdav-lenin/kontakte/'.$_SESSION['liste']);
+      $inhalt=str_replace("\r\n ","",$inhalt);
+      $inhalt=str_replace("\r\n","\n",$inhalt);
+      $array=split("\n",$inhalt);
+      $num_mails=0;
+      $fh=fopen($basedir.'/tmp/'.session_id().'/'.$name.'.txt','w');
+      for($i=0;$i<count($array);$i++){
+
+         $tag=strstr($array[$i],";",true);
+
+         if($tag=="EMAIL"){
+             $mail_addr=strrchr($array[$i],":");
+             if(false===strpos($mail_addr,"<")){
+               7==7;
+             }else{
+               $mail_addr=strrchr($mail_addr,"<");
+             }
+             $mail_addr=str_replace(":","",$mail_addr);
+             $mail_addr=str_replace(" ","",$mail_addr);
+             $mail_addr=str_replace("<","",$mail_addr);
+             $mail_addr=str_replace(">","",$mail_addr);
+             $mail_addr=str_replace("'","",$mail_addr);
+             $mail_addr=strtolower($mail_addr);
+             
+             $mails[$num_mails++]=$mail_addr;
+             fprintf($fh,"%s\n",$mail_addr);
+         }
+      }
+      fclose($fh);
+  }
+
+//************************************************************************************
+
+  if($_POST["subject"]==""){
+      if($ok){$error.="Es fehlen: ";}
+      $subject="";
+      $ok=false;
+      $error.= "Betreff ";
+  }else{
+      $subject=$_POST["subject"];
+      $_SESSION['subject']=$subject;
+  }
+
+  if($_POST["text"]==""){
+      if($ok){$error.="Es fehlen: ";}
+      $text="";
+      $ok=false;
+      $error.= "Text ";
+  } else{
+      $text=$_POST["text"];
+      $_SESSION['text']=$text;
+  }
+
+  if(!isset($_POST["versand"])){
+      $versand=1;
+  } else{
+      $versand=$_POST["versand"];
+      $_SESSION['versand']=$versand;
+  }
+
+
+
+}else{$ok=false;}
+
+
+
+
+
+
+
+if(($ok)and(isset($_POST['senden']))and($_POST["senden"]=="senden")){
+
+
+  // mailing is done here!!!!!!!!!!!!!!!!!!!!!!!!
+
+  //atachments --> $files[]
+  unset($files);
+  $files=array();
+  $i=0;
+  $dir=$basedir.'/tmp/'.session_id().'/attach/';
+  if(file_exists($dir)){
+    if ($dh = opendir($dir)) {
+      while (($file = readdir($dh)) !== false) {
+        if($file[0]<>"."){
+          $files[$i++]=$dir.$file;
+        }
+      }
+      closedir($dh);
+    }
+  }
+
+  //from --> $from
+  switch($_SESSION['user']){
+    case 1000: $from="basil.stotz@vpod-basel.ch";
+               break;
+    case 1001: $from="roland.bauer@vpod-basel.ch";
+               break;
+    case 1002: $from="edith.jaeckle@vpod-basel.ch";
+               break;
+    case 1003: $from="franziska.sager@vpod-basel.ch";
+               break;
+    case 1004: $from="heidi.mueck@vpod-basel.ch";
+               break;
+    case 1005: $from="marianne.meyer@vpod-basel.ch";
+               break;
+    case 1006: $from="matthias.scheurer@vpod-basel.ch";
+               break;
+    case 1007: $from="susanne.nese@vpod-basel.ch";
+               break;
+   }
+  
+  switch($versand){
+    case 0: $to_queue=false;
+            $wait=0;
+            break;
+    case 1: $to_queue=true;  //sollte true sein
+            $wait=0;
+            break;
+    case 2: $to_queue=true;  //sollte true sein
+            $now=date("H")+0;
+            if(($now>6)and($now<19)){$wait=3600*(19-$now);}else{$wait=300;}
+            break;
+  }
+  
+  $delete=false;
+
+  //liste in tabelle mail
+  for($j=0;$j<$num_mails;$j++){
+      $to=$mails[$j];
+      send_mail($user,$from,$to,$subject,$text,$files,$to_queue,$wait,$delete);
+  }
+  $new_subject='Mail mit Betreff <<'.$subject.'>> wurde an die Liste <<'.$name.'>> verschickt';
+  send_mail($user,$from,$from,$new_subject ,$text,$files,$to_queue,$wait+30,$delete);
+  
+  echo "<p align='right'><b>".$num_mails."</b> Mails wurden an die Liste <b>".$name."</b> versendet!</p>";
+
+}
+
+?>
+
+
+<!---- *********************************************************************************************
+       *                                                                                           *
+       *                              hier startet die seite                                       *
+       *                                                                                           *
+       *********************************************************************************************
+---!>
+
+<html>
+
+<body style="background:rgb(200,200,200);">
+Zum <a href='abook.php?top=yes'>Adressbuch</a> wechseln.
+<h1>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Massen Mail</h1>
+
+<?php if($ok){
+   echo "<p></p>";
+}else{
+   echo "<p align='right'>".$error."</p>";
+} ?>
+
+
+
+<form action="<?php $_SERVER['PHP_SELF']?>" method="post" enctype="multipart/form-data">
+
+
+<table width='100%'>
+<tr><td align="right">Von:</td><td> 
+   <select name="user" size="1">
+      <option <?php if($user=="-1"){echo "selected";} ?> value="-1"></option>
+      <option <?php if($user=="1000"){echo "selected";} ?> value="1000">Basil Stotz</option>
+      <option <?php if($user=="1002"){echo "selected";} ?> value="1002">Edith J&auml;ckle</option>
+      <option <?php if($user=="1004"){echo "selected";} ?> value="1004">Heidi M&uuml;ck</option>
+      <option <?php if($user=="1007"){echo "selected";} ?> value="1007">Susanne Nese</option>
+      <option <?php if($user=="1006"){echo "selected";} ?> value="1006">Matthias Scheurer</option>
+      <option <?php if($user=="1003"){echo "selected";} ?> value="1003">Franziska Sager</option>
+      <option <?php if($user=="1005"){echo "selected";} ?> value="1005">Marianne Meyer</option>
+    </select>
+</td>
+</tr><tr><td align="right">
+An Liste:</td><td>
+
+<?php
+
+echo "<select name='liste' size='1'>\n";
+echo "<option value='nolist'></option>\n";
+for($i=0;$i<$zahl;$i++){
+  if($vcards['file'][$i]==$_SESSION['liste']){$sel=" selected ";}else{$sel=" ";}
+  echo "<option value='".$vcards['file'][$i]."' ".$sel." >".$vcards['name'][$i]."</option>\n";
+}
+echo "</select>\n";
+?>
+ 
+
+</td></tr><tr>
+<tr><td>&nbsp;</td><td>
+<?php
+if($name<>"noname"){
+  //echo "<a href='http://lenin.local/webdav/kontakte/".$liste."' target='_blanc'>".$name.".vcf</a>\n";
+  //$fil='tmp/'.session_id().'/'.$name.'.txt';
+  //echo "<a href='".$fil."' target='_blanc'><span style='font-size:10px'>".$name.".txt</span></a>\n";
+}
+?>
+</td></tr>
+<td align="right">Betreff:</td><td><input name="subject" value="<?php echo $subject; ?>" type="text" size="61" maxlength="30">
+</td></tr>
+<tr valign="top">
+<td align="right">Text:</td><td>
+
+<!---text version!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+<textarea name="text" cols="70" rows="15" wrap="hard"><?php echo $text; ?></textarea> 
+---!>
+
+<?php
+$cke= new CKeditor();
+$config=array();
+$config['toolbar']= array(
+  //array('Cut','Copy','Paste','PasteText','-','Print'),
+  array('Bold', 'Italic', 'Underline','-','NumberedList','BulletedList','-','Outdent','Indent','Blockquote'),
+  array('JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock','-','Font','FontSize','TextColor'),
+  array('Link','Unlink','Image','Table','HorizontalRule')
+);
+$config['fullPage']=true;
+
+CKFinder::SetupCKEditor($cke);
+$cke->editor("text",$text,$config);
+?>
+</td></tr>
+
+<tr valign="top"><td align="right">
+  Anhang:</td><td>
+
+<?php
+  $dir = $basedir.'/tmp/'.session_id().'/attach/';
+  if(file_exists($dir)){
+    if (is_dir($dir)) {
+      if ($dh = opendir($dir)) {
+        while (($file = readdir($dh)) !== false) {
+            if($file[0]<>"."){echo $file."<br>\n";}
+        }
+        closedir($dh);
+      }
+    }
+  }
+
+     echo "<input name='attach' type='file' size='61'>";
+     echo "<input name='upload' type='submit' value='Laden'>";
+
+?>
+
+</td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+
+<tr><td align="right">
+
+</td><td>
+        <select name="versand" size="1">
+<!--           <option <?php if($versand=="0"){echo "selected";} ?> value="0">Jetzt, direkt (nicht empfohlen)</option>
+--!>
+           <option <?php if($versand=="1"){echo "selected";} ?> value="1">Jetzt</option>
+           <option <?php if($versand=="2"){echo "selected";} ?> value="2">Am Abend</option>
+        </select>
+        <input name="senden" type="submit" value="senden">
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+        <input name="reset" type="submit" value="Abbrechen">
+</td></tr>
+</table>
+</form>
+
+</body>
+</html>

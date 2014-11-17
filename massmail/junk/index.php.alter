@@ -1,0 +1,84 @@
+<html>
+
+<body style="background:rgb(200,200,200);">
+<h1>Massen Mail</h1>
+
+<?php
+$dir = "/var/webdav-lenin/kontakte/";
+$j=0;
+// Öffnen eines bekannten Verzeichnisses und danach seinen Inhalt einlesen
+if (is_dir($dir)) {
+    if ($dh = opendir($dir)) {
+        while (($file = readdir($dh)) !== false) {
+            //echo "filename: $file\n<br>";
+
+            $inhalt=file_get_contents($dir.$file);
+
+            $inhalt=str_replace("\r\n ","",$inhalt);
+            $inhalt=str_replace("\r\n","\n",$inhalt);
+            $array=split("\n",$inhalt);
+
+//print_r( $array);
+
+            $is_list=1;
+            $num=count($array);
+            for($i=0;$i<$num;$i++){
+                  if($array[$i]=="X-EVOLUTION-LIST:TRUE"){$is_list=0;}
+            }
+            if($is_list==0){
+               //print_r($array);
+               //echo $num;
+               for($i=0;$i<$num;$i++){
+                  //echo "g";
+                  $line=split(":",$array[$i]);
+                  $tags=split(";",$line[0]);
+                   //echo $tags[0]."--->".$line[1]."\n";
+                  if($tags[0]=="FN"){
+                      $vcards['name'][$j]=$line[1];
+	              $vcards['file'][$j]=$file;
+                      $j++;
+                  }
+               }
+             }
+
+        }
+        closedir($dh);
+        $zahl=$j;
+    }
+}
+array_multisort($vcards['name'],$vcards['file']);
+?>
+
+<?php
+echo "<form action='".$_SERVER['PHP_SELF']."'>\n";
+echo "<select name='liste' size='1'>\n";
+echo "<option value='nolist'></option>\n";
+for($i=0;$i<$zahl;$i++){
+  echo "<option value='".$vcards['file'][$i]."'>".$vcards['name'][$i]."</option>\n";
+}
+
+echo "</select>\n";
+echo "<br>\n";
+echo "<input type='submit' name='submit' value='Ansehen'>\n";
+
+echo "</form>\n";
+
+if($_GET['submit']=="Ansehen"){
+
+            echo "<a href='http://lenin.local/webdav/kontakte/".$_GET['liste']."'>Download</a><br>\n";
+            $inhalt=file_get_contents($dir.$_GET['liste']);
+            $inhalt=str_replace("\r\n ","",$inhalt);
+            $inhalt=str_replace("\r\n","\n",$inhalt);
+            $array=split("\n",$inhalt);
+            for($i=0;$i<count($array);$i++){
+              echo htmlspecialchars($array[$i])."<br>\n";
+            }
+}
+
+?>
+
+
+
+
+</body>
+</html>

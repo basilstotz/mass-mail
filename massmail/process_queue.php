@@ -1,0 +1,48 @@
+#!/usr/bin/php -q
+<?php
+
+if($argc==2){$smtp_user=$argv[1];}else{exit;}
+
+$BufferSize=10;
+$limit =  9;
+$max_count=96;
+
+$run='/tmp/process_queue.run';
+
+require_once('config.php');
+require_once('lib/prepare_queue.php');
+require_once('lib/log_queue.php');
+require_once('lib/count_queue.php');
+
+$count=count_queue($smtp_user);
+
+if($count>=$max_count){exit;}
+
+if(file_exists($run)){exit;}
+touch($run);
+
+//prepare_queue($maxmail=90,$intervall=86400,$timeshift=3600,$timeskew=300)
+prepare_queue(400);
+
+/* we use the db_options and mail_options from the config again  */
+$mail_queue =& new Mail_Queue($db_options, $mail_options);
+
+$mail_queue->setBufferSize($BufferSize);
+
+//set the queue size (i.e. the number of mails to send)
+$mail_queue->container->setOption($limit);
+
+// evtl $mail->skip(); benutzen?????
+
+$i=0;
+// loop through the stored emails and send them
+while (($mail = $mail_queue->get())and($i++<$limit)and($count<=$max_count)) {
+   sleep(5+mt_rand(0,10));
+   $result = $mail_queue->sendMail($mail);
+   log_queue($smtp_user,$mail->getIdUser(),$mail->getSender(),$mail->getRecipient());
+   $count++;  
+}
+
+unlink($run);
+
+?>

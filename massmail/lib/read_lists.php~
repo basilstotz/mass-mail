@@ -1,0 +1,32 @@
+<?php
+
+require_once('File/IMC.php');
+
+function read_lists($dir){
+
+  $j=0;
+  if (is_dir($dir)) {
+    if ($dh = opendir($dir)) {
+        while (($file = readdir($dh)) !== false) {
+            //echo "filename: $file\n<br>";
+            if(false!==strpos($file,'.vcf')){
+               $parse=File_IMC::parse('vCard');
+               $info=$parse->fromFile($dir.$file);
+               if(isset($info['VCARD'][0]['X-EVOLUTION-LIST'][0]['value'][0][0])){
+                  if($info['VCARD'][0]['X-EVOLUTION-LIST'][0]['value'][0][0]=="TRUE"){
+                      $vcards['name'][$j]=$info['VCARD'][0]['FN'][0]['value'][0][0];
+                      $vcards['file'][$j]=$file; 
+                      $j++;
+                  }
+               }
+            }
+        }
+        closedir($dh);
+     }
+  }
+  array_multisort($vcards['name'],$vcards['file']);
+  return($vcards);
+
+}
+
+?>
